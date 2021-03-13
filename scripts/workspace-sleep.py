@@ -27,6 +27,7 @@ import csv
 import boto3
 from botocore.exceptions import ClientError
 
+exclude_users = []
 
 import logging
 logger = logging.getLogger()

@@ -39,30 +39,41 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 def main(args):
 
-    client = boto3.client('workspaces')
-    workspaces = get_workspaces(client)
+    client = boto3.client('ec2')
+    instances = get_instances(client)
 
-    # print("WorkspaceId,Username,Team,BundleID,State,ConnectionState,LastConnection")
+    for i in instances.keys():
+        if 'Name' not in instances[i]:
+            print(f"No Name for {i}")
+            continue
 
-    for ws_id in workspaces.keys():
-        ws = workspaces[ws_id]
-        if ws['State'] == "STOPPED":
-            print(f"Starting {ws_id} for {ws['UserName']}")
-            client.start_workspaces(StartWorkspaceRequests=[{'WorkspaceId': ws_id}])
-            # exit(1)
+        desc = f"2021 SECCDC Regionals {i} {instances[i]['Name']}"
+        print(desc)
+
+        response = client.create_snapshots(
+            Description=desc,
+            InstanceSpecification={
+                'InstanceId': i,
+                'ExcludeBootVolume': False
+            }
+        )
 
 
-def get_workspaces(client):
-    workspaces = {}
+0f354cd754de41f3d
 
-    response = client.describe_workspaces(Limit=25)
-    while 'NextToken' in response:
-        for ws in response['Workspaces']:
-            workspaces[ws['WorkspaceId']] = ws
-        response = client.describe_workspaces(Limit=25, NextToken=response['NextToken'])
-    for ws in response['Workspaces']:
-        workspaces[ws['WorkspaceId']] = ws
-    return(workspaces)
+def get_instances(client):
+    instances = {}
+
+    response = client.describe_instances(Filters=[{'Name': 'instance-state-name', 'Values': ['running', 'stopped']}])
+
+    for r in response['Reservations']:
+        for i in r['Instances']:
+            if 'Tags' in i:
+                for t in i['Tags']:
+                    if t['Key'] == "Name":
+                        i['Name'] = t['Value']
+        instances[i['InstanceId']] = i
+    return(instances)
 
 
 if __name__ == '__main__':
